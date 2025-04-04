@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "stm32f4xx_hal_def.h"
 #include "usart.h"
 #include "usb_device.h"
 #include "gpio.h"
@@ -26,6 +27,7 @@
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include <string.h>
+#include "usbd_cdc_if.h"
 
 /* USER CODE END Includes */
 
@@ -59,11 +61,20 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 int __io_putchar(int ch) {
-  HAL_UART_Transmit(&huart6, (uint8_t *)&ch, 1, 0xFFFF);
   if (ch == '\n') {
     HAL_UART_Transmit(&huart6, (uint8_t *)"\r", 1, 0xFFFF);
   }
+  HAL_UART_Transmit(&huart6, (uint8_t *)&ch, 1, 0xFFFF);
   return ch;
+}
+
+int __io_getchar(void) {
+  HAL_StatusTypeDef status = HAL_BUSY;
+  uint8_t data;
+  while (status != HAL_OK) {
+    status = HAL_UART_Receive(&huart6, &data, 1, 0xFFFF);
+  }
+  return data;
 }
 
 /* USER CODE END 0 */
@@ -100,31 +111,28 @@ int main(void)
   MX_USART6_UART_Init();
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
+  int len, device;
+  uint32_t t1 = 0, t2;
+  uint32_t N = 100000;
+
   static uint8_t msg[] =
-      "********10********20********30********40********50********60********70**"
+      "/*******10********20********30********40********50********60********70**"
       "******80********90*******100*******110*******120*******130*******140****"
       "***150*******160*******170*******180*******190*******200*******210******"
-      "*220*******230*******240*******250****\n\r";
-  uint16_t len = strlen((char *)msg);
-  uint32_t t1 = 0, t2;
-  uint32_t N = 100;
+      "*220*******230*******240*******250*******260*******270*******280*******"
+      "290*******300*******310*******320*******330*******340*******350*******"
+      "360*******370*******380*******390*******400*******410*******420*******"
+      "430*******440*******450*******460*******470*******480*******490*******"
+      "500*******510*******520*******530*******540*******550*******560*******"
+      "570*******580*******590*******600*******610*******620*******630*******"
+      "640*******650*******660*******670*******680*******690*******700*******"
+      "710*******720*******730*******740*******750*******760*******770*******"
+      "780*******790*******800*******810*******820*******830*******840*******"
+      "850*******860*******870*******880*******890*******900*******910*******"
+      "920*******930*******940*******950*******960*******970*******980*******"
+      "990******1000******1010******1020****";
 
-  printf("*****UART TX Tester*****\n");
-
-    t1 = HAL_GetTick();
-    for (int cnt = 0; cnt < N; ++cnt) {
-      HAL_UART_Transmit(&huart6, msg, len, 0xFFFF);
-      CDC_Transmit_FS(msg, len);
-    }
-    t2 = HAL_GetTick();
-
-    uint32_t tmp = len * N * 8;
-    uint32_t num = tmp / (t2 - t1);
-    uint32_t frac = (tmp - num * (t2 - t1)) * 1000 / (t2 - t1);
-
-    printf("BlockSize: %u byte\n", len);
-    printf("Repeat:    %u\n", N);
-    printf("TxRate:    %u.%03u kbps (%u ms)\n", num, frac, t2 - t1);
+  setvbuf(stdin, NULL, _IONBF, 0);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -133,6 +141,33 @@ int main(void)
   {
     /* USER CODE END WHILE */
 
+    scanf("%d", &device);
+    printf("%d\n", device);
+    scanf("%d", &len);
+    printf("%d\n", len);
+    scanf("%lu", &N);
+    printf("%lu\n", N);
+
+    if (device) {
+      HAL_Delay(100);
+      t1 = HAL_GetTick();
+      for (uint32_t cnt = 0; cnt < N; ++cnt) {
+        while (CDC_Transmit_FS(msg, len) != USBD_OK) {
+        }
+      }
+      t2 = HAL_GetTick();
+    } else {
+      t1 = HAL_GetTick();
+      for (uint32_t cnt = 0; cnt < N; ++cnt) {
+        HAL_UART_Transmit(&huart6, msg, len, 0xFFFF);
+      }
+      t2 = HAL_GetTick();
+    }
+
+    uint32_t tmp = len * N * 8;
+    uint32_t num = tmp / (t2 - t1);
+    uint32_t frac = (tmp - num * (t2 - t1)) * 1000 / (t2 - t1);
+    printf("TxRate: %lu.%03lu kbps (%lu ms)\n", num, frac, t2 - t1);
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
